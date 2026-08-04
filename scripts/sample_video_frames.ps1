@@ -29,9 +29,6 @@ Optional path to ffmpeg.exe or the directory containing it.
 Optional path to ffprobe.exe or the directory containing it. If ffprobe cannot
 be found, duration probing falls back to ffmpeg.
 
-.PARAMETER ToolCacheRoot
-Optional tool cache root containing bin/ffmpeg.exe and bin/ffprobe.exe.
-
 .EXAMPLE
 pwsh ./scripts/sample_video_frames.ps1 -InputPath C:\videos\talk.mkv -Intensity auto
 
@@ -56,8 +53,6 @@ param(
     [string] $FfmpegPath,
 
     [string] $FfprobePath,
-
-    [string] $ToolCacheRoot,
 
     [Nullable[int]] $FrameWidth,
 
@@ -150,8 +145,6 @@ function Resolve-NativeTool {
 
         [string[]] $SiblingDirectories = @(),
 
-        [string[]] $CacheRoots = @(),
-
         [switch] $Optional
     )
 
@@ -171,13 +164,6 @@ function Resolve-NativeTool {
             $candidates.Add((Join-Path $directory "$Name.exe"))
         }
     }
-    foreach ($root in $CacheRoots) {
-        if (-not [string]::IsNullOrWhiteSpace($root)) {
-            $candidates.Add((Join-Path $root "bin\$Name.exe"))
-            $candidates.Add((Join-Path $root "$Name.exe"))
-        }
-    }
-
     foreach ($candidate in $candidates | Select-Object -Unique) {
         if (Test-Path -LiteralPath $candidate -PathType Leaf) {
             return (Resolve-Path -LiteralPath $candidate).ProviderPath
@@ -187,7 +173,7 @@ function Resolve-NativeTool {
     if ($Optional) {
         return $null
     }
-    throw "$Name was not found on PATH or in a supplied/cache path."
+    throw "$Name was not found on PATH or at the supplied path."
 }
 
 function Invoke-NativeCapture {
@@ -358,22 +344,10 @@ if ($existingFrames.Count -gt 0) {
     throw "Output directory already contains sampled frames: $resolvedOutputDir. Choose an empty output directory to avoid mixing runs."
 }
 
-$cacheRoots = [System.Collections.Generic.List[string]]::new()
-if (-not [string]::IsNullOrWhiteSpace($ToolCacheRoot)) {
-    $cacheRoots.Add($ToolCacheRoot)
-}
-if (-not [string]::IsNullOrWhiteSpace($env:VIDEO_ANALYSIS_TOOL_CACHE)) {
-    $cacheRoots.Add($env:VIDEO_ANALYSIS_TOOL_CACHE)
-}
-if (-not [string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) {
-    $cacheRoots.Add((Join-Path $env:LOCALAPPDATA 'CodexSkills\video-content-analysis'))
-}
-$cacheRoots.Add((Join-Path $PSScriptRoot '..\tools'))
-
-$resolvedFfmpegPath = Resolve-NativeTool -Name 'ffmpeg' -ExplicitPath $FfmpegPath -CacheRoots $cacheRoots
+$resolvedFfmpegPath = Resolve-NativeTool -Name 'ffmpeg' -ExplicitPath $FfmpegPath
 $ffmpegDirectory = Split-Path -Parent $resolvedFfmpegPath
 $resolvedFfprobePath = Resolve-NativeTool -Name 'ffprobe' -ExplicitPath $FfprobePath `
-    -SiblingDirectories @($ffmpegDirectory) -CacheRoots $cacheRoots -Optional
+    -SiblingDirectories @($ffmpegDirectory) -Optional
 if ($null -eq $resolvedFfprobePath) {
     Write-Warning 'ffprobe was not found; using ffmpeg input metadata for duration probing.'
 }

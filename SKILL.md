@@ -1,117 +1,134 @@
 ---
 name: video-content-analysis
-description: Acquire and analyze YouTube videos, Shorts, livestreams, scheduled lives, member-only videos the user can lawfully access, and playlists on macOS or Windows. Use when asked to fetch a YouTube URL with yt-dlp, save media and metadata, select captions, transcribe missing speech locally, adapt visual sampling intensity, summarize with timestamps, or compare multiple videos. Includes Apple Silicon MLX Whisper and Windows NVIDIA/OpenAI Whisper routes; excludes backup, cloud sync, access-control bypass, and report publishing.
+description: Windows-focused skill to acquire and analyze YouTube videos, Shorts, livestreams, scheduled lives, member-only videos the user can lawfully access, and playlists. Use on Windows when asked to fetch a YouTube URL with yt-dlp, save video and metadata, extract captions, transcribe missing speech locally, adapt frame-sampling density or visual-analysis intensity, summarize content with timestamps, or compare multiple videos. This skill excludes backup or cloud sync, access-control bypass, and report publishing.
 ---
 
-# Video Content Analysis
+# Video Content Analysis for Windows
 
-Run a local evidence pipeline: acquire the source, prefer available captions, transcribe only when captions are missing, inspect representative frames, and produce a source-grounded report.
+Run the complete local evidence pipeline: acquire the source with `yt-dlp`, prefer available captions, transcribe only when captions are missing, inspect representative frames, and produce a source-grounded report.
 
-## Guardrails
+## Scope Boundary
 
-- Process public content or restricted content the user's own account can already access. Never bypass access controls.
-- Use browser authentication only with the user's authorization. Never request, display, export, or commit raw cookie values.
-- Keep media, browser profiles, metadata, transcripts, and frames local unless a separate workflow explicitly authorizes publication or transfer.
-- Exclude backup, cloud sync, and destination-specific behavior from this skill.
-- Do not install browser extensions, alter browser policies, or copy cookie-decryption helpers into trusted locations.
+- Include YouTube acquisition, metadata, descriptions, thumbnails, captions, local transcription, frame sampling, and content analysis.
+- Accept public content and restricted or member content that the user's own account can already access.
+- Use a dedicated Firefox profile only when the user authorizes that local authentication route. Never request raw cookie values or bypass access controls.
+- Keep all acquired and generated files local unless a separate, explicitly requested workflow handles backup, sync, or publication.
+- Do not include Google Drive, Dropbox, Telegram, Notion, or other destination-specific behavior in this skill.
 
-## Platform Routing
+## Windows Platform Contract
 
-Determine the host before running scripts:
+- Target native Windows only. Do not claim validated macOS, Linux, or WSL support from this branch.
+- Require PowerShell 7, `yt-dlp`, `ffmpeg`, `ffprobe`, and Node.js 22 or newer on `PATH`.
+- Require the OpenAI Whisper CLI for local transcription; prefer CUDA on a compatible NVIDIA GPU and allow explicit CPU use when necessary.
+- Keep browser profiles, media, transcripts, and generated frames on the PC unless the user separately authorizes another workflow.
+- Read the prerequisites in `references/youtube-acquisition.md` before the first acquisition run.
 
-- **macOS:** Read `references/youtube-acquisition.md`. Use the bundled Bash scripts with Deno 2.3+ and prefer MLX Whisper on Apple Silicon.
-- **Windows:** Read `references/windows-setup.md`. Use PowerShell 7 scripts and prefer OpenAI Whisper with CUDA on a supported NVIDIA GPU.
-- **Linux or WSL:** Stop and report that this repository does not yet provide a validated route.
+## Quick Start
 
-Use only the scripts for the detected host. Do not run the macOS shell scripts through WSL as a substitute for the Windows workflow.
-
-## Invocation
-
-Accept an optional intensity token immediately after the skill mention:
+For explicit Codex invocation, accept an optional intensity token immediately after the skill mention:
 
 ```text
 $video-content-analysis high "YOUTUBE_URL"
 ```
 
-Treat `auto`, `low`, `standard`, `high`, or `max` as the requested visual-analysis intensity. If omitted, use `auto`.
+Treat `auto`, `low`, `standard`, `high`, or `max` in that position as the requested visual-analysis intensity. Do not require the user to write environment-variable syntax. If no token is supplied, use `auto`.
+
+Acquire a public video, live replay, Short, or playlist into a dedicated directory:
+
+```powershell
+& .\scripts\fetch_youtube.ps1 `
+  -Url 'YOUTUBE_URL' `
+  -OutputDir 'C:\path\to\analysis-workdir'
+```
+
+For content available only through the user's dedicated Firefox profile:
+
+```powershell
+& .\scripts\fetch_youtube.ps1 `
+  -Url 'YOUTUBE_URL' `
+  -OutputDir 'C:\path\to\analysis-workdir' `
+  -FirefoxProfileName 'CodexYouTubeMember'
+```
+
+For a currently running or scheduled livestream:
+
+```powershell
+& .\scripts\fetch_youtube.ps1 `
+  -Url 'YOUTUBE_URL' `
+  -OutputDir 'C:\path\to\analysis-workdir' `
+  -LiveFromStart `
+  -WaitForVideo 30
+```
+
+Read `references/youtube-acquisition.md` before handling authenticated content, live streams, playlists, or acquisition failures.
 
 ## Workflow
 
-1. Select a dedicated local work directory and determine whether authentication is necessary.
-   - Try acquisition without cookies for public URLs.
-   - On Windows, restricted content requires an explicitly named, user-owned Firefox profile. On macOS, follow the platform reference for an authorized browser session or a pre-existing user-supplied cookie file; never ask the user to export or paste cookies.
+1. Choose a dedicated local work directory and determine whether authentication is needed.
+   - Confirm the host is Windows and the required commands are available.
+   - Try public acquisition without cookies first for public URLs.
+   - For member or otherwise restricted content, use only a user-owned, explicitly named Firefox profile.
 
-2. Acquire the source.
-   - macOS: run `scripts/fetch_youtube.sh`.
-   - Windows: run `scripts/preflight.ps1`, resolve blocking items, then run `scripts/fetch_youtube.ps1`.
-   - Treat ordinary watch, Short, live, and youtu.be URLs as one item even when they contain `list=`. Use `-IncludePlaylist` on Windows or `INCLUDE_PLAYLIST=1` on macOS only when the user explicitly requests that playlist. Explicit `/playlist` URLs select playlist mode by default.
-   - Save media, cleaned info JSON, description, thumbnail, available captions, and `archive.txt`.
-   - Preserve successful playlist items. If yt-dlp returns an error, read the timestamped acquisition/error logs, report failed video IDs named there, and mark IDs that cannot be recovered from the log as unknown.
+2. Run `scripts/fetch_youtube.ps1`.
+   - Download media by default.
+   - Save `.info.json`, description, thumbnail, human subtitles, and automatic subtitles when YouTube exposes them.
+   - Keep `archive.txt` for safe repeat runs.
+   - Do not copy the result to any backup destination.
 
-3. Inventory the evidence.
-   - Prefer human-authored timed captions, then automatic captions.
-   - Inspect subtitle keys in info JSON and retry a targeted language before transcribing.
-   - Read metadata and descriptions for title, channel, date, duration, and context.
+3. Inventory the acquired evidence.
+   - Prefer human-authored `*.vtt`, `*.srt`, or other timed captions.
+   - Otherwise use automatic captions.
+   - Read `.info.json` and description files for title, channel, date, duration, and context.
+   - If no useful caption was downloaded, inspect subtitle language keys in `.info.json` and rerun acquisition with `-SubtitleLanguages` and `-SkipMedia` when an available track was missed.
+   - If captions are absent or materially incomplete after that check, run `scripts/transcribe_local_whisper.ps1` on the media file.
 
-4. Transcribe only when captions are absent or materially incomplete.
-   - macOS: run `scripts/transcribe_local_whisper.sh`.
-   - Windows: obtain approval before the first multi-gigabyte runtime setup, run `scripts/setup_windows.ps1 -WithWhisper`, then run `scripts/transcribe_local_whisper.ps1`.
+4. Add visual evidence.
+   - Run `scripts/sample_video_frames.ps1`; its default `auto` mode probes visual-change density and samples changing intervals more frequently than static intervals.
+   - Use `-Intensity high` for chart-heavy trading, dense slide, code, or dashboard videos. Reserve `max` for short material or explicitly requested exhaustive review.
+   - Treat automatic density as a visual-change proxy, then inspect extra frames around transcript-dense timestamps such as numbers, decisions, demonstrations, and references to on-screen content.
 
-5. Add visual evidence.
-   - macOS: run `scripts/sample_video_frames.sh`.
-   - Windows: run `scripts/sample_video_frames.ps1`.
-   - Start with `auto`; use `high` for dense charts, slides, code, dashboards, or demonstrations. Reserve `max` for short material or explicitly requested exhaustive review.
-   - Read `frames.tsv` and `sampling.tsv`, then inspect extra frames around transcript-dense timestamps.
-
-6. Read `references/analysis-guide.md` and analyze the examined evidence.
-   - Preserve real timestamps and never invent timing for untimed text.
+5. Analyze and report.
+   - Preserve real timestamps and never invent them for untimed text.
    - Separate source facts, speaker claims, and analyst inference.
-   - Analyze long videos chronologically before synthesis.
-   - Analyze playlist items separately before cross-video synthesis.
+   - For long videos, analyze chronological segments before synthesis.
+   - For playlists, produce per-video coverage and notes before cross-video synthesis.
+   - Report missing captions, failed items, uncertain names or numbers, and unexamined ranges.
 
-## Quick Start
+Read `references/analysis-guide.md` for evidence passes, output shapes, and quality checks.
 
-macOS acquisition:
+## Local Transcription
 
-```bash
-scripts/fetch_youtube.sh "YOUTUBE_URL" "/path/to/analysis-workdir"
-```
-
-Windows public acquisition:
+When captions are missing, run:
 
 ```powershell
-$skillPath = Join-Path $HOME '.codex\skills\video-content-analysis'
-& "$skillPath\scripts\preflight.ps1"
-& "$skillPath\scripts\fetch_youtube.ps1" `
-  -Url 'YOUTUBE_URL' `
-  -OutputDir 'C:\path\to\analysis-workdir' `
-  -NoPlaylist
+& .\scripts\transcribe_local_whisper.ps1 `
+  -InputPath 'C:\path\to\video-or-audio' `
+  -OutputDir 'C:\path\to\transcripts'
 ```
 
-Windows authenticated acquisition uses the optional dedicated Firefox profile described in `references/windows-setup.md`. Fully exit Firefox before cookie extraction.
+The helper requires `ffmpeg` and the OpenAI Whisper CLI on `PATH`, or explicit binary paths. Use its parameters for model, optional model directory, language, output format, prompt, and device selection.
 
-Windows local transcription:
+## Visual Sampling
+
+Run:
 
 ```powershell
-& "$skillPath\scripts\setup_windows.ps1" -WithWhisper
-& "$skillPath\scripts\transcribe_local_whisper.ps1" -InputPath 'C:\path\video.mkv'
+& .\scripts\sample_video_frames.ps1 `
+  -InputPath 'C:\path\to\video' `
+  -OutputDir 'C:\path\to\frames' `
+  -Intensity auto
 ```
 
-Windows adaptive frame sampling:
+The helper requires `ffmpeg` and preferably `ffprobe`. It writes adaptive frames, exact selected timestamps in `frames.tsv`, and the detected profile and sampling parameters in `sampling.tsv`.
 
-```powershell
-& "$skillPath\scripts\sample_video_frames.ps1" `
-  -InputPath 'C:\path\video.mkv' `
-  -Intensity high
-```
+Supported values are `auto`, `low`, `standard`, `high`, and `max`. By default there is no total-frame limit: intensity controls the candidate interval and visual-change threshold. `-FrameCount` adds a hard limit only when the user explicitly requests one. Read `references/analysis-guide.md` before choosing `high` or `max` for long media.
 
 ## Completion Checklist
 
 - Report the local work directory and acquired media count.
 - State whether captions came from YouTube, local transcription, or neither.
 - State which metadata, transcripts, and frames were actually examined.
-- Report requested/effective visual intensity and any explicit frame limit from `sampling.tsv`.
-- Give the requested analysis with timestamps when supported by evidence.
-- Distinguish successful, partial, and failed playlist items.
-- Cite the timestamped acquisition/error log when a failed playlist ID cannot be recovered.
+- Report the requested/effective visual-analysis intensity and any explicit frame limit from `sampling.tsv`.
+- Give the requested analysis with timestamps when supported by the evidence.
+- For playlists, distinguish successful, partial, and failed items.
 - Disclose acquisition, transcription, visual-sampling, and coverage limitations.

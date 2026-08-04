@@ -1,28 +1,23 @@
 # YouTube Acquisition Guide
 
-## macOS Prerequisites
+## Windows Prerequisites
 
-This reference covers the macOS route. Install the acquisition and media dependencies with Homebrew when they are not already available:
+This branch targets native Windows. Install current releases of PowerShell 7, `yt-dlp`, `ffmpeg`, `ffprobe`, and Node.js 22 or newer, then make the commands available on `PATH`.
 
-```bash
-brew install yt-dlp ffmpeg deno
+Verify the commands before downloading:
+
+```powershell
+$PSVersionTable.PSVersion
+Get-Command yt-dlp, ffmpeg, ffprobe, node
+yt-dlp --version
+node --version
 ```
 
-Verify the host and commands before downloading:
-
-```bash
-test "$(uname -s)" = "Darwin"
-command -v yt-dlp
-command -v ffmpeg
-command -v ffprobe
-command -v deno
-```
-
-Homebrew is the recommended installation route, not a runtime requirement; existing compatible binaries on `PATH` are acceptable. Deno 2.3.0 or newer is the supported JavaScript runtime for YouTube EJS challenge solving in the bundled macOS helper. Apple Silicon is the validated route when local MLX Whisper transcription is needed. An Intel Mac may use another local Whisper engine, but verify that path on the target machine before claiming support.
+Existing compatible binaries may instead be supplied through the helper's explicit path parameters. Local transcription additionally requires the OpenAI Whisper CLI and its compatible Python/PyTorch runtime; an existing model cache can be passed with `-ModelDirectory`.
 
 ## Input and Output Contract
 
-Run `scripts/fetch_youtube.sh` with one YouTube URL and one dedicated output directory. The helper writes locally:
+Run `scripts/fetch_youtube.ps1` with one YouTube URL and one dedicated output directory. The helper writes locally:
 
 - video media, normally remuxed to MKV;
 - human and automatic captions exposed by YouTube;
@@ -30,43 +25,43 @@ Run `scripts/fetch_youtube.sh` with one YouTube URL and one dedicated output dir
 - descriptions and thumbnails;
 - `archive.txt` for repeat-run deduplication when media download is enabled.
 
-Use a separate output directory for each unrelated request. Do not treat this directory as a backup destination.
+Use a separate output directory for each unrelated request. This is an analysis workspace, not a separate backup workflow.
 
-## Authentication Routes
+## Authentication Route
 
-Use no cookies for public content. For content the user can already access through their own account, select exactly one opt-in route:
+Use no browser profile for public content. For content the user can already access through their own account, explicitly pass the name of a dedicated Firefox profile:
 
-```bash
-YT_DLP_COOKIES_FROM_BROWSER="chrome"
+```powershell
+& .\scripts\fetch_youtube.ps1 `
+  -Url 'YOUTUBE_URL' `
+  -OutputDir 'C:\path\to\analysis-workdir' `
+  -FirefoxProfileName 'CodexYouTubeMember'
 ```
 
-```bash
-YT_DLP_COOKIES_FILE="/path/to/cookies.txt"
-```
-
-`YT_DLP_COOKIES_FROM_BROWSER` accepts the syntax supported by the installed `yt-dlp`, such as `chrome:Profile 1`, `firefox`, or another supported browser. Keep cookie files and browser profiles device-local. Never ask the user to paste raw cookie contents, commit them, copy them into the skill, or include them in a report.
+Fully exit Firefox before the run so `yt-dlp` can read the local profile database. Keep the profile device-local. Never ask the user to paste raw cookie contents, commit them, copy them into the skill, or include them in a report.
 
 Authentication reuses access the user already has. It is not a DRM bypass and must not be used to evade access controls.
 
 ## Acquisition Controls
 
-- `YT_DLP_SUB_LANGS`: Caption language expression. Default: `en,zh-Hans,zh-Hant,ja,.*-orig`. The exact tags cover common human captions, while `.*-orig` selects an original automatic-caption track when YouTube labels one. Override it for other human-caption languages.
-- `YT_DLP_RETRIES`: Network and fragment retry count. Default: `10`.
-- Ordinary watch, Short, live, and youtu.be URLs default to one item even when they contain `list=`; explicit `/playlist` URLs default to playlist mode.
-- `NO_PLAYLIST=1`: Force only the addressed item.
-- `INCLUDE_PLAYLIST=1`: Explicitly acquire the playlist attached to a watch URL.
-- `SKIP_MEDIA=1`: Fetch metadata, descriptions, thumbnails, and captions without downloading video media.
-- `LIVE_FROM_START=1`: Ask `yt-dlp` to acquire a running livestream from its beginning when supported.
-- `WAIT_FOR_VIDEO=MIN[-MAX]`: Wait for a scheduled livestream to become available.
-- `YT_DLP_BIN`: Use an explicit `yt-dlp` binary path or command.
+- `-SubtitleLanguages`: Caption language expression. Default: `en,zh-Hans,zh-Hant,ja,.*-orig`.
+- `-Retries`: Network, fragment, and extractor retry count. Default: `10`; `infinite` is also accepted.
+- `-NoPlaylist`: Download only the addressed video when a URL also contains playlist context.
+- `-SkipMedia`: Fetch metadata, descriptions, thumbnails, and captions without downloading video media.
+- `-LiveFromStart`: Ask `yt-dlp` to acquire a running livestream from its beginning when supported.
+- `-WaitForVideo MIN[-MAX]`: Wait for a scheduled livestream to become available.
+- `-YtDlpPath`, `-FfmpegPath`, `-FfprobePath`, and `-NodePath`: Use explicit binary paths instead of commands on `PATH`.
 
 Set a focused caption expression whenever the source language is known. Use `all,-live_chat` only when broad multilingual coverage is actually needed; automatic translations can create many files and trigger rate limits.
 
 If the first run downloads no useful captions, inspect the `subtitles` and `automatic_captions` keys in `*.info.json`. When a human caption exists under another language tag, fetch it without redownloading media. Metadata-only runs intentionally ignore `archive.txt`, so the same video can be revisited for a targeted caption:
 
-```bash
-SKIP_MEDIA=1 YT_DLP_SUB_LANGS="es" \
-  scripts/fetch_youtube.sh "YOUTUBE_URL" "/path/to/the-same-workdir"
+```powershell
+& .\scripts\fetch_youtube.ps1 `
+  -Url 'YOUTUBE_URL' `
+  -OutputDir 'C:\path\to\the-same-workdir' `
+  -SkipMedia `
+  -SubtitleLanguages 'es'
 ```
 
 Only fall back to local transcription after targeted caption retrieval is unavailable or inadequate.
@@ -87,10 +82,10 @@ Do not load every playlist transcript into context at once. Analyze each item, r
 
 1. Run `yt-dlp --version`; YouTube extraction changes frequently, so use a recent release before diagnosing deeper failures.
 2. Confirm that the URL is a supported YouTube URL and that the output directory is writable.
-3. For access errors, distinguish public availability from user-authenticated availability. Do not add cookies blindly.
-4. For browser-cookie errors, verify the browser/profile selector locally without displaying cookie data.
-5. For scheduled lives, use `WAIT_FOR_VIDEO`; for running lives, add `LIVE_FROM_START=1` only when full-from-start capture is intended.
+3. For access errors, distinguish public availability from user-authenticated availability. Do not add browser authentication blindly.
+4. For Firefox profile errors, fully exit Firefox and verify the profile name locally without displaying cookie data.
+5. For scheduled lives, use `-WaitForVideo`; for running lives, add `-LiveFromStart` only when full-from-start capture is intended.
 6. If media downloads but captions do not exist, continue through local transcription.
-7. If a playlist partially fails, preserve successful items and read the timestamped `acquisition-*.errors.log`. Report video IDs named there, disclose errors whose IDs cannot be recovered, and avoid claiming full coverage.
+7. If a playlist partially fails, preserve successful items, report failed video IDs, and avoid claiming full coverage.
 
 Treat downloaded metadata as local evidence. Even cleaned `*.info.json` files may contain fields that should not be published without review.

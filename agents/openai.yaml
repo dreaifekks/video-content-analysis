@@ -1,4 +1,4 @@
 interface:
-  display_name: "YouTube Video Content Analysis"
-  short_description: "Fetch and deeply analyze YouTube videos locally"
-  default_prompt: "Use $video-content-analysis to fetch this YouTube URL on my computer, inspect its evidence, and produce a source-grounded report."
+  display_name: "YouTube Video Analysis for Windows"
+  short_description: "Fetch and deeply analyze YouTube videos on Windows"
+  default_prompt: "Use $video-content-analysis on Windows to fetch this YouTube URL, extract its evidence, and produce a source-grounded report."

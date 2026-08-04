@@ -39,12 +39,12 @@ For a collection, finish the item-level map before comparing items.
 
 ### 4. Visual pass
 
-Start with the platform sampler in its default `auto` mode: `scripts/sample_video_frames.sh` on macOS or `scripts/sample_video_frames.ps1` on Windows. It probes visual-change density, keeps sparse coverage through static intervals, and lowers the interval around stronger changes. Read both `frames.tsv` and `sampling.tsv` before deciding whether coverage is sufficient.
+Start with `scripts/sample_video_frames.ps1` in its default `auto` mode. It probes visual-change density, keeps sparse coverage through static intervals, and lowers the interval around stronger changes. Read both `frames.tsv` and `sampling.tsv` before deciding whether coverage is sufficient.
 
 Automatic density is only a visual-change proxy. A moving face can change pixels without adding much information, while a static price chart can contain important values. Add a semantic-density pass using the timed transcript:
 
 - mark clusters of numbers, price levels, dates, symbols, commands, decisions, and action items;
-- mark phrases that point to the image, such as “here,” “this level,” “look at the chart,” or “on screen”;
+- mark phrases that point to the image, such as "here," "this level," "look at the chart," or "on screen";
 - mark slide, chart, code, dashboard, order-book, or demonstration sections;
 - inspect frames at those timestamps and immediately before or after important changes.
 
@@ -57,25 +57,18 @@ Choose a manual intensity when the user requests one or the source type clearly 
 | `high` | Chart-heavy trading, dashboards, code, demonstrations, or dense slides. |
 | `max` | Explicitly requested exhaustive visual review, preferably on short material or narrowed ranges. |
 
-Run a manual profile on macOS with:
-
-```bash
-scripts/sample_video_frames.sh \
-  "/path/to/video" "/path/to/new-frame-output" high
-```
-
-Run the equivalent profile on Windows with:
+Run a manual profile with:
 
 ```powershell
-& "$skillPath\scripts\sample_video_frames.ps1" `
-  -InputPath 'C:\path\video.mkv' `
-  -OutputDir 'C:\path\new-frame-output' `
+& .\scripts\sample_video_frames.ps1 `
+  -InputPath 'C:\path\to\video' `
+  -OutputDir 'C:\path\to\new-frame-output' `
   -Intensity high
 ```
 
-Use a new output directory for every sampling run. There is no default total-frame limit; the intensity profile continues sampling across the entire video according to its interval and change threshold. This does not mean extracting every encoded video frame or duplicating unchanged frames. Set `FRAME_COUNT` on macOS or `-FrameCount` on Windows only when the user explicitly requests a hard limit. Minimum gap, maximum gap, and scene threshold are expert overrides.
+Use a new output directory for every sampling run. There is no default total-frame limit; the intensity profile continues sampling across the entire video according to its interval and change threshold. This does not mean extracting every encoded video frame or duplicating unchanged frames. Use `-FrameCount` only when the user explicitly requests a hard limit. `-MinGap`, `-MaxGap`, and `-SceneThreshold` are expert overrides.
 
-For direct Codex use, prefer a compact invocation such as `$video-content-analysis high "YOUTUBE_URL"`. In Codex CLI or the IDE extension, `$` mentions a skill and `/skills` opens the skill selector; `/skill high` is not a per-skill command alias. After selection, a bare intensity token must be honored without asking the user to translate it into an environment variable.
+For direct Codex use, prefer a compact invocation such as `$video-content-analysis high "YOUTUBE_URL"`. In Codex CLI or the IDE extension, `$` mentions a skill and `/skills` opens the skill selector; `/skill high` is not a per-skill command alias. After selection, a bare intensity token must be honored without asking the user to translate it into a PowerShell parameter.
 
 Note whether each observation comes from text, audio, the image, or a combination. Do not infer off-screen events from a sampled frame.
 
