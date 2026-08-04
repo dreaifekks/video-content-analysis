@@ -17,6 +17,14 @@ Run the complete local evidence pipeline: acquire the source with `yt-dlp`, pref
 
 ## Quick Start
 
+For explicit Codex invocation, accept an optional intensity token immediately after the skill mention:
+
+```text
+$video-content-analysis high "YOUTUBE_URL"
+```
+
+Treat `auto`, `low`, `standard`, `high`, or `max` in that position as the requested visual-analysis intensity. Do not require the user to write environment-variable syntax. If no token is supplied, use `auto`.
+
 Acquire a public video, live replay, Short, or playlist into a dedicated directory:
 
 ```bash
@@ -87,7 +95,7 @@ The helper requires `ffmpeg` plus one supported local engine: `mlx_whisper`, `wh
 Run:
 
 ```bash
-scripts/sample_video_frames.sh "/path/to/video" [output_dir]
+scripts/sample_video_frames.sh "/path/to/video" [output_dir] [intensity]
 ```
 
 The helper requires `ffmpeg` and `ffprobe`. It writes adaptive frames, exact selected timestamps in `frames.tsv`, and the detected profile and sampling parameters in `sampling.tsv`.
@@ -95,11 +103,10 @@ The helper requires `ffmpeg` and `ffprobe`. It writes adaptive frames, exact sel
 Set a manual analysis intensity when the user requests a faster or deeper visual review:
 
 ```bash
-VIDEO_ANALYSIS_INTENSITY=high \
-  scripts/sample_video_frames.sh "/path/to/video" [output_dir]
+scripts/sample_video_frames.sh "/path/to/video" [output_dir] high
 ```
 
-Supported values are `auto`, `low`, `standard`, `high`, and `max`. `FRAME_COUNT` remains available as a hard budget override. Read `references/analysis-guide.md` before choosing `high` or `max` for long media.
+Supported values are `auto`, `low`, `standard`, `high`, and `max`. By default there is no total-frame limit: the selected intensity controls the candidate interval and visual-change threshold. `FRAME_COUNT` adds a hard limit only when the user explicitly requests one. Read `references/analysis-guide.md` before choosing `high` or `max` for long media.
 
 The bundled scripts target Bash on macOS, Linux, or WSL. Native Windows execution is not assumed.
 
@@ -108,7 +115,7 @@ The bundled scripts target Bash on macOS, Linux, or WSL. Native Windows executio
 - Report the local work directory and acquired media count.
 - State whether captions came from YouTube, local transcription, or neither.
 - State which metadata, transcripts, and frames were actually examined.
-- Report the requested and effective visual-analysis intensity from `sampling.tsv`.
+- Report the requested/effective visual-analysis intensity and any explicit frame limit from `sampling.tsv`.
 - Give the requested analysis with timestamps when supported by the evidence.
 - For playlists, distinguish successful, partial, and failed items.
 - Disclose acquisition, transcription, visual-sampling, and coverage limitations.

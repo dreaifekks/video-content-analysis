@@ -60,11 +60,13 @@ Choose a manual intensity when the user requests one or the source type clearly 
 Run a manual profile with:
 
 ```bash
-VIDEO_ANALYSIS_INTENSITY=high \
-  scripts/sample_video_frames.sh "/path/to/video" "/path/to/new-frame-output"
+scripts/sample_video_frames.sh \
+  "/path/to/video" "/path/to/new-frame-output" high
 ```
 
-Use a new output directory for every sampling run. `FRAME_COUNT` sets a hard budget; `FRAME_MIN_GAP`, `FRAME_MAX_GAP`, and `FRAME_SCENE_THRESHOLD` are expert overrides. Higher intensity increases compute, image count, and review time, so do not silently use `max` for a long livestream.
+Use a new output directory for every sampling run. There is no default total-frame limit; the intensity profile continues sampling across the entire video according to its interval and change threshold. This does not mean extracting every encoded video frame or duplicating unchanged frames. Set `FRAME_COUNT` only when the user explicitly requests a hard limit. `FRAME_MIN_GAP`, `FRAME_MAX_GAP`, and `FRAME_SCENE_THRESHOLD` are expert overrides.
+
+For direct Codex use, prefer a compact invocation such as `$video-content-analysis high "YOUTUBE_URL"`. In Codex CLI or the IDE extension, `$` mentions a skill and `/skills` opens the skill selector; `/skill high` is not a per-skill command alias. After selection, a bare intensity token must be honored without asking the user to translate it into an environment variable.
 
 Note whether each observation comes from text, audio, the image, or a combination. Do not infer off-screen events from a sampled frame.
 
@@ -103,6 +105,6 @@ Lead with the direct answer, then provide the smallest amount of timestamped evi
 - Keep source facts, speaker claims, and analyst inference distinct.
 - Preserve timestamps through chunking and synthesis.
 - Check that sampled frames do not substitute for unreviewed video sections.
-- Check `sampling.tsv`; disclose the requested/effective intensity and any frame-budget limit.
+- Check `sampling.tsv`; disclose the requested/effective intensity and any explicit frame limit.
 - Disclose partial coverage and low-confidence transcription.
 - Avoid reproducing long copyrighted passages; summarize and quote only short excerpts needed for analysis.

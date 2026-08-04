@@ -4,11 +4,14 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 Usage:
-  sample_video_frames.sh "/path/to/video" [output_dir]
+  sample_video_frames.sh "/path/to/video" [output_dir] [intensity]
+
+Arguments:
+  intensity                 auto, low, standard, high, or max. Default: auto
 
 Environment:
-  VIDEO_ANALYSIS_INTENSITY  auto, low, standard, high, or max. Default: auto
-  FRAME_COUNT               Optional hard frame budget override.
+  VIDEO_ANALYSIS_INTENSITY  Fallback intensity when the positional value is omitted.
+  FRAME_COUNT               Optional hard frame limit. Unset means unlimited.
   FRAME_WIDTH               Maximum output width in pixels. Default: 1600
   FRAME_MIN_GAP             Optional minimum seconds between candidate frames.
   FRAME_MAX_GAP             Optional maximum seconds without a coverage frame.
@@ -21,6 +24,7 @@ Outputs:
 
 The default auto mode probes visual-change density, chooses a profile, and then
 samples static intervals sparsely while adding frames around stronger changes.
+Intensity controls sampling frequency, not a default total-frame ceiling.
 The output directory must not already contain frame_*.jpg files.
 EOF
 }
@@ -30,14 +34,14 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   exit 0
 fi
 
-if [[ $# -lt 1 || $# -gt 2 ]]; then
+if [[ $# -lt 1 || $# -gt 3 ]]; then
   usage >&2
   exit 2
 fi
 
 input_path="$1"
 output_dir="${2:-}"
-requested_intensity="${VIDEO_ANALYSIS_INTENSITY:-auto}"
+requested_intensity="${3:-${VIDEO_ANALYSIS_INTENSITY:-auto}}"
 frame_width="${FRAME_WIDTH:-1600}"
 
 if [[ ! -f "$input_path" ]]; then
@@ -187,7 +191,6 @@ fi
 
 case "$effective_intensity" in
   low)
-    default_frame_budget=60
     baseline_frames=8
     profile_min_gap=30
     profile_max_gap=300
@@ -195,7 +198,6 @@ case "$effective_intensity" in
     absolute_gap_floor=1
     ;;
   standard)
-    default_frame_budget=180
     baseline_frames=16
     profile_min_gap=10
     profile_max_gap=120
@@ -203,7 +205,6 @@ case "$effective_intensity" in
     absolute_gap_floor=0.5
     ;;
   high)
-    default_frame_budget=480
     baseline_frames=32
     profile_min_gap=3
     profile_max_gap=30
@@ -211,7 +212,6 @@ case "$effective_intensity" in
     absolute_gap_floor=0.25
     ;;
   max)
-    default_frame_budget=1200
     baseline_frames=60
     profile_min_gap=1
     profile_max_gap=10
@@ -220,7 +220,7 @@ case "$effective_intensity" in
     ;;
 esac
 
-frame_budget="${FRAME_COUNT:-$default_frame_budget}"
+frame_budget="${FRAME_COUNT:-unlimited}"
 requested_min_gap="${FRAME_MIN_GAP:-$profile_min_gap}"
 requested_max_gap="${FRAME_MAX_GAP:-$profile_max_gap}"
 scene_threshold="${FRAME_SCENE_THRESHOLD:-$profile_scene_threshold}"
@@ -239,6 +239,17 @@ coverage_gap="$(awk \
 
 if [[ "$frame_budget" == "1" ]]; then
   candidate_gap="$(awk -v duration="$duration" 'BEGIN { printf "%.6f", duration + 1 }')"
+elif [[ "$frame_budget" == "unlimited" ]]; then
+  candidate_gap="$(awk \
+    -v requested="$requested_min_gap" \
+    -v coverage="$coverage_gap" \
+    -v floor="$absolute_gap_floor" \
+    'BEGIN {
+      value = requested
+      if (value > coverage) value = coverage
+      if (value < floor) value = floor
+      printf "%.6f", value
+    }')"
 else
   budget_gap="$(awk -v duration="$duration" -v budget="$frame_budget" \
     'BEGIN { printf "%.6f", ((duration / budget) * 1.000001) + 0.000001 }')"
@@ -353,7 +364,11 @@ fi
 echo "Adaptive frame sampling complete"
 echo "Requested intensity: $requested_intensity"
 echo "Effective intensity: $effective_intensity"
-echo "Sampled frames: $frame_count_actual / budget $frame_budget"
+if [[ "$frame_budget" == "unlimited" ]]; then
+  echo "Sampled frames: $frame_count_actual (no total-frame limit)"
+else
+  echo "Sampled frames: $frame_count_actual / limit $frame_budget"
+fi
 echo "Output directory: $output_dir"
 echo "Frame manifest: $frame_manifest"
 echo "Sampling manifest: $sampling_manifest"
