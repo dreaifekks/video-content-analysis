@@ -1,0 +1,4 @@
+interface:
+  display_name: "Video Content Analysis"
+  short_description: "Transcribe and analyze local video content"
+  default_prompt: "Use $video-content-analysis to analyze this video or transcript and produce a source-grounded report."
