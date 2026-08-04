@@ -1,5 +1,24 @@
 # YouTube Acquisition Guide
 
+## macOS Prerequisites
+
+This skill targets macOS. Install the acquisition and media dependencies with Homebrew when they are not already available:
+
+```bash
+brew install yt-dlp ffmpeg
+```
+
+Verify the host and commands before downloading:
+
+```bash
+test "$(uname -s)" = "Darwin"
+command -v yt-dlp
+command -v ffmpeg
+command -v ffprobe
+```
+
+Homebrew is the recommended installation route, not a runtime requirement; existing compatible binaries on `PATH` are acceptable. Apple Silicon is the validated route when local MLX Whisper transcription is needed. An Intel Mac may use another local Whisper engine, but verify that path on the target machine before claiming support.
+
 ## Input and Output Contract
 
 Run `scripts/fetch_youtube.sh` with one YouTube URL and one dedicated output directory. The helper writes locally:

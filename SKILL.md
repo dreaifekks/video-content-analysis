@@ -1,9 +1,9 @@
 ---
 name: video-content-analysis
-description: Acquire and analyze YouTube videos, Shorts, livestreams, scheduled lives, member-only videos the user can lawfully access, and playlists. Use when asked to fetch a YouTube URL with yt-dlp, save video and metadata, extract human or automatic captions, transcribe missing speech locally, adapt frame-sampling density or visual-analysis intensity, summarize content with timestamps, or compare multiple videos. This skill includes local acquisition and analysis but excludes backup or cloud sync, access-control bypass, and report publishing.
+description: macOS-focused skill to acquire and analyze YouTube videos, Shorts, livestreams, scheduled lives, member-only videos the user can lawfully access, and playlists. Use on a Mac when asked to fetch a YouTube URL with yt-dlp, save video and metadata, extract captions, transcribe missing speech locally, adapt frame-sampling density or visual-analysis intensity, summarize content with timestamps, or compare multiple videos. This skill excludes backup or cloud sync, access-control bypass, and report publishing.
 ---
 
-# Video Content Analysis
+# Video Content Analysis for macOS
 
 Run the complete local evidence pipeline: acquire the source with `yt-dlp`, prefer available captions, transcribe only when captions are missing, inspect representative frames, and produce a source-grounded report.
 
@@ -14,6 +14,14 @@ Run the complete local evidence pipeline: acquire the source with `yt-dlp`, pref
 - Use browser cookies or a cookie file only when the user authorizes that local authentication route. Never request raw cookie values or bypass access controls.
 - Keep all acquired and generated files local unless a separate, explicitly requested workflow handles backup, sync, or publication.
 - Do not include Google Drive, Dropbox, Telegram, Notion, or other destination-specific behavior in this skill.
+
+## macOS Platform Contract
+
+- Target macOS only; the bundled workflow is currently verified on Apple Silicon. Do not claim validated Linux, WSL, or Windows support from this repository.
+- Require Bash 3.2 or newer, `yt-dlp`, `ffmpeg`, and `ffprobe`.
+- Prefer `mlx_whisper` for local transcription on Apple Silicon. An Intel Mac can use `whisper` or `whisper.cpp`, but that path requires local verification.
+- Keep browser profiles, cookies, media, transcripts, and generated frames on the Mac unless the user separately authorizes another workflow.
+- Read the macOS prerequisites in `references/youtube-acquisition.md` before the first acquisition run.
 
 ## Quick Start
 
@@ -50,6 +58,7 @@ Read `references/youtube-acquisition.md` before handling authenticated content, 
 ## Workflow
 
 1. Choose a dedicated local work directory and determine whether authentication is needed.
+   - Confirm the host is macOS and the required commands are available.
    - Try public acquisition without cookies first for public URLs.
    - For member or otherwise restricted content, use only a user-owned authorized browser session or cookie file.
 
@@ -88,7 +97,7 @@ When captions are missing, run:
 scripts/transcribe_local_whisper.sh "/path/to/video-or-audio" [output_dir] [base_name]
 ```
 
-The helper requires `ffmpeg` plus one supported local engine: `mlx_whisper`, `whisper`, `whisper-cli`, or `whisper-cpp`. It auto-detects engines on `PATH`; use `--help` for model, language, binary, and prompt overrides.
+The helper requires `ffmpeg` plus one supported local engine: `mlx_whisper`, `whisper`, `whisper-cli`, or `whisper-cpp`. On Apple Silicon it prefers MLX when available; use `--help` for model, language, binary, and prompt overrides.
 
 ## Visual Sampling
 
@@ -108,7 +117,7 @@ scripts/sample_video_frames.sh "/path/to/video" [output_dir] high
 
 Supported values are `auto`, `low`, `standard`, `high`, and `max`. By default there is no total-frame limit: the selected intensity controls the candidate interval and visual-change threshold. `FRAME_COUNT` adds a hard limit only when the user explicitly requests one. Read `references/analysis-guide.md` before choosing `high` or `max` for long media.
 
-The bundled scripts target Bash on macOS, Linux, or WSL. Native Windows execution is not assumed.
+The bundled scripts target macOS. Other operating systems require a separate compatibility pass and are outside this skill's validated scope.
 
 ## Completion Checklist
 

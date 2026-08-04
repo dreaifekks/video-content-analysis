@@ -6,6 +6,9 @@ usage() {
 Usage:
   sample_video_frames.sh "/path/to/video" [output_dir] [intensity]
 
+Platform:
+  macOS with ffmpeg and ffprobe available on PATH.
+
 Arguments:
   intensity                 auto, low, standard, high, or max. Default: auto
 

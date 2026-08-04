@@ -1,4 +1,4 @@
 interface:
-  display_name: "YouTube Video Analysis"
-  short_description: "Fetch, transcribe, and analyze YouTube videos"
-  default_prompt: "Use $video-content-analysis to fetch this YouTube URL, extract its evidence, and produce a source-grounded report."
+  display_name: "YouTube Video Analysis for macOS"
+  short_description: "Fetch and deeply analyze YouTube videos on macOS"
+  default_prompt: "Use $video-content-analysis on macOS to fetch this YouTube URL, extract its evidence, and produce a source-grounded report."

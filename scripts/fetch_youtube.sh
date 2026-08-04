@@ -6,6 +6,9 @@ usage() {
 Usage:
   fetch_youtube.sh "YOUTUBE_URL" "/path/to/output_dir"
 
+Platform:
+  macOS. Install yt-dlp and ffmpeg with Homebrew or provide compatible binaries.
+
 Environment:
   YT_DLP_BIN                   yt-dlp command or explicit binary path. Default: yt-dlp
   YT_DLP_COOKIES_FROM_BROWSER Optional browser source, e.g. chrome:Profile 1

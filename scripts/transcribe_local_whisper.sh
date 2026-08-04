@@ -6,6 +6,9 @@ usage() {
 Usage:
   transcribe_local_whisper.sh "/path/to/video-or-audio" [output_dir] [base_name]
 
+Platform:
+  macOS. Apple Silicon prefers mlx_whisper; verify another engine on Intel Mac.
+
 Environment:
   LOCAL_WHISPER_ENGINE      auto | mlx_whisper | whisper | whisper_cpp
                             Default: auto
