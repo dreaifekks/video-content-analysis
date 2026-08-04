@@ -39,7 +39,34 @@ For a collection, finish the item-level map before comparing items.
 
 ### 4. Visual pass
 
-Start with evenly sampled frames, then inspect targeted frames near important timestamps. Note whether each observation comes from text, audio, the image, or a combination. Do not infer off-screen events from a sampled frame.
+Start with `scripts/sample_video_frames.sh` in its default `auto` mode. It probes visual-change density, keeps sparse coverage through static intervals, and lowers the interval around stronger changes. Read both `frames.tsv` and `sampling.tsv` before deciding whether coverage is sufficient.
+
+Automatic density is only a visual-change proxy. A moving face can change pixels without adding much information, while a static price chart can contain important values. Add a semantic-density pass using the timed transcript:
+
+- mark clusters of numbers, price levels, dates, symbols, commands, decisions, and action items;
+- mark phrases that point to the image, such as “here,” “this level,” “look at the chart,” or “on screen”;
+- mark slide, chart, code, dashboard, order-book, or demonstration sections;
+- inspect frames at those timestamps and immediately before or after important changes.
+
+Choose a manual intensity when the user requests one or the source type clearly warrants it:
+
+| Intensity | Use |
+| --- | --- |
+| `low` | Fast pass over visually simple or mostly static material. |
+| `standard` | General-purpose review with moderate coverage. |
+| `high` | Chart-heavy trading, dashboards, code, demonstrations, or dense slides. |
+| `max` | Explicitly requested exhaustive visual review, preferably on short material or narrowed ranges. |
+
+Run a manual profile with:
+
+```bash
+VIDEO_ANALYSIS_INTENSITY=high \
+  scripts/sample_video_frames.sh "/path/to/video" "/path/to/new-frame-output"
+```
+
+Use a new output directory for every sampling run. `FRAME_COUNT` sets a hard budget; `FRAME_MIN_GAP`, `FRAME_MAX_GAP`, and `FRAME_SCENE_THRESHOLD` are expert overrides. Higher intensity increases compute, image count, and review time, so do not silently use `max` for a long livestream.
+
+Note whether each observation comes from text, audio, the image, or a combination. Do not infer off-screen events from a sampled frame.
 
 ### 5. Synthesis pass
 
@@ -76,5 +103,6 @@ Lead with the direct answer, then provide the smallest amount of timestamped evi
 - Keep source facts, speaker claims, and analyst inference distinct.
 - Preserve timestamps through chunking and synthesis.
 - Check that sampled frames do not substitute for unreviewed video sections.
+- Check `sampling.tsv`; disclose the requested/effective intensity and any frame-budget limit.
 - Disclose partial coverage and low-confidence transcription.
 - Avoid reproducing long copyrighted passages; summarize and quote only short excerpts needed for analysis.

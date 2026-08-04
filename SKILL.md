@@ -1,6 +1,6 @@
 ---
 name: video-content-analysis
-description: Acquire and analyze YouTube videos, Shorts, livestreams, scheduled lives, member-only videos the user can lawfully access, and playlists. Use when asked to fetch a YouTube URL with yt-dlp, save video and metadata, extract human or automatic captions, transcribe missing speech locally, sample video frames, summarize or analyze content with timestamps, or compare multiple videos. This skill includes local acquisition and analysis but excludes backup or cloud sync, access-control bypass, and report publishing.
+description: Acquire and analyze YouTube videos, Shorts, livestreams, scheduled lives, member-only videos the user can lawfully access, and playlists. Use when asked to fetch a YouTube URL with yt-dlp, save video and metadata, extract human or automatic captions, transcribe missing speech locally, adapt frame-sampling density or visual-analysis intensity, summarize content with timestamps, or compare multiple videos. This skill includes local acquisition and analysis but excludes backup or cloud sync, access-control bypass, and report publishing.
 ---
 
 # Video Content Analysis
@@ -59,8 +59,9 @@ Read `references/youtube-acquisition.md` before handling authenticated content, 
    - If captions are absent or materially incomplete after that check, run `scripts/transcribe_local_whisper.sh` on the media file.
 
 4. Add visual evidence.
-   - Run `scripts/sample_video_frames.sh` for slide decks, charts, screen recordings, demonstrations, or visually ambiguous passages.
-   - Inspect extra frames around important transcript timestamps instead of relying only on uniform samples.
+   - Run `scripts/sample_video_frames.sh`; its default `auto` mode probes visual-change density and samples changing intervals more frequently than static intervals.
+   - Use `VIDEO_ANALYSIS_INTENSITY=high` for chart-heavy trading, dense slide, code, or dashboard videos. Reserve `max` for short material or explicitly requested exhaustive review.
+   - Treat automatic density as a visual-change proxy, then inspect extra frames around transcript-dense timestamps such as numbers, decisions, demonstrations, and references to on-screen content.
 
 5. Analyze and report.
    - Preserve real timestamps and never invent them for untimed text.
@@ -89,7 +90,16 @@ Run:
 scripts/sample_video_frames.sh "/path/to/video" [output_dir]
 ```
 
-The helper requires `ffmpeg` and `ffprobe`. It samples up to 12 evenly spaced frames by default and writes `frames.tsv` with approximate timestamps.
+The helper requires `ffmpeg` and `ffprobe`. It writes adaptive frames, exact selected timestamps in `frames.tsv`, and the detected profile and sampling parameters in `sampling.tsv`.
+
+Set a manual analysis intensity when the user requests a faster or deeper visual review:
+
+```bash
+VIDEO_ANALYSIS_INTENSITY=high \
+  scripts/sample_video_frames.sh "/path/to/video" [output_dir]
+```
+
+Supported values are `auto`, `low`, `standard`, `high`, and `max`. `FRAME_COUNT` remains available as a hard budget override. Read `references/analysis-guide.md` before choosing `high` or `max` for long media.
 
 The bundled scripts target Bash on macOS, Linux, or WSL. Native Windows execution is not assumed.
 
@@ -98,6 +108,7 @@ The bundled scripts target Bash on macOS, Linux, or WSL. Native Windows executio
 - Report the local work directory and acquired media count.
 - State whether captions came from YouTube, local transcription, or neither.
 - State which metadata, transcripts, and frames were actually examined.
+- Report the requested and effective visual-analysis intensity from `sampling.tsv`.
 - Give the requested analysis with timestamps when supported by the evidence.
 - For playlists, distinguish successful, partial, and failed items.
 - Disclose acquisition, transcription, visual-sampling, and coverage limitations.
