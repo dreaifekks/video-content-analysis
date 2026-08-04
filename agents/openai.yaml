@@ -1,4 +1,4 @@
 interface:
-  display_name: "Video Content Analysis"
-  short_description: "Transcribe and analyze local video content"
-  default_prompt: "Use $video-content-analysis to analyze this video or transcript and produce a source-grounded report."
+  display_name: "YouTube Video Analysis"
+  short_description: "Fetch, transcribe, and analyze YouTube videos"
+  default_prompt: "Use $video-content-analysis to fetch this YouTube URL, extract its evidence, and produce a source-grounded report."

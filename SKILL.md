@@ -1,56 +1,85 @@
 ---
 name: video-content-analysis
-description: Analyze video or audio content from local media, caption files, subtitles, transcripts, or already-acquired YouTube videos, livestreams, and playlists. Use when asked to summarize a video or live, extract timestamped topics, compare multiple videos, inspect slides/charts/demos, identify claims and action items, or transcribe media that lacks captions. This skill is analysis-only; downloading or authentication, backup or sync, and report publishing are out of scope.
+description: Acquire and analyze YouTube videos, Shorts, livestreams, scheduled lives, member-only videos the user can lawfully access, and playlists. Use when asked to fetch a YouTube URL with yt-dlp, save video and metadata, extract human or automatic captions, transcribe missing speech locally, sample video frames, summarize or analyze content with timestamps, or compare multiple videos. This skill includes local acquisition and analysis but excludes backup or cloud sync, access-control bypass, and report publishing.
 ---
 
 # Video Content Analysis
 
-Analyze locally available video evidence and produce a source-grounded report. Prefer existing timed text, add local transcription only when needed, and inspect frames when visual content materially affects the meaning.
+Run the complete local evidence pipeline: acquire the source with `yt-dlp`, prefer available captions, transcribe only when captions are missing, inspect representative frames, and produce a source-grounded report.
 
 ## Scope Boundary
 
-- Accept local media, audio, subtitle, caption, transcript, and metadata files.
-- Treat URL acquisition, authenticated access, DRM, archiving, backup, cloud sync, and publication as separate workflows.
-- If the user supplies only a URL, identify the missing input and use a separately authorized acquisition method before continuing. Do not bypass access controls.
-- Keep media and generated transcripts local. Do not upload them to a remote transcription service without explicit user approval.
+- Include YouTube acquisition, metadata, descriptions, thumbnails, captions, local transcription, frame sampling, and content analysis.
+- Accept public content and restricted or member content that the user's own account can already access.
+- Use browser cookies or a cookie file only when the user authorizes that local authentication route. Never request raw cookie values or bypass access controls.
+- Keep all acquired and generated files local unless a separate, explicitly requested workflow handles backup, sync, or publication.
+- Do not include Google Drive, Dropbox, Telegram, Notion, or other destination-specific behavior in this skill.
+
+## Quick Start
+
+Acquire a public video, live replay, Short, or playlist into a dedicated directory:
+
+```bash
+scripts/fetch_youtube.sh "YOUTUBE_URL" "/path/to/analysis-workdir"
+```
+
+For content available only through the user's browser session:
+
+```bash
+YT_DLP_COOKIES_FROM_BROWSER="chrome:Profile 1" \
+  scripts/fetch_youtube.sh "YOUTUBE_URL" "/path/to/analysis-workdir"
+```
+
+For a currently running or scheduled livestream:
+
+```bash
+LIVE_FROM_START=1 WAIT_FOR_VIDEO=30 \
+  scripts/fetch_youtube.sh "YOUTUBE_URL" "/path/to/analysis-workdir"
+```
+
+Read `references/youtube-acquisition.md` before handling authenticated content, live streams, playlists, or acquisition failures.
 
 ## Workflow
 
-1. Inventory the available inputs and the user's question.
-   - Prefer `*.vtt`, `*.srt`, or other timestamped captions.
-   - Otherwise use a supplied transcript or notes.
-   - If only media is available, run `scripts/transcribe_local_whisper.sh`.
-   - Record title, duration, language, and coverage gaps when known.
+1. Choose a dedicated local work directory and determine whether authentication is needed.
+   - Try public acquisition without cookies first for public URLs.
+   - For member or otherwise restricted content, use only a user-owned authorized browser session or cookie file.
 
-2. Build an evidence map.
-   - Normalize repeated caption fragments and styling noise without deleting meaningful repetition.
-   - Preserve timestamps when present; never invent timestamps for plain text.
-   - For long media or collections, analyze one segment or item at a time, then synthesize.
+2. Run `scripts/fetch_youtube.sh`.
+   - Download media by default.
+   - Save `.info.json`, description, thumbnail, human subtitles, and automatic subtitles when YouTube exposes them.
+   - Keep `archive.txt` for safe repeat runs.
+   - Do not copy the result to any backup destination.
 
-3. Add visual evidence when useful.
+3. Inventory the acquired evidence.
+   - Prefer human-authored `*.vtt`, `*.srt`, or other timed captions.
+   - Otherwise use automatic captions.
+   - Read `.info.json` and description files for title, channel, date, duration, and context.
+   - If no useful caption was downloaded, inspect the subtitle language keys in `.info.json` and rerun acquisition with a targeted `YT_DLP_SUB_LANGS` value when an available track was missed.
+   - If captions are absent or materially incomplete after that check, run `scripts/transcribe_local_whisper.sh` on the media file.
+
+4. Add visual evidence.
    - Run `scripts/sample_video_frames.sh` for slide decks, charts, screen recordings, demonstrations, or visually ambiguous passages.
-   - Inspect additional frames around important transcript timestamps instead of relying only on evenly sampled frames.
-   - Distinguish what is visible from what the speaker claims.
+   - Inspect extra frames around important transcript timestamps instead of relying only on uniform samples.
 
-4. Produce the report in the user's requested language.
+5. Analyze and report.
+   - Preserve real timestamps and never invent them for untimed text.
    - Separate source facts, speaker claims, and analyst inference.
-   - Cite timestamps where the source provides them.
-   - Mark uncertain names, numbers, quotations, or missing sections.
-   - Include coverage and material limitations.
+   - For long videos, analyze chronological segments before synthesis.
+   - For playlists, produce per-video coverage and notes before cross-video synthesis.
+   - Report missing captions, failed items, uncertain names or numbers, and unexamined ranges.
 
-Read `references/analysis-guide.md` for the detailed analysis passes, output shapes, and quality checks.
+Read `references/analysis-guide.md` for the evidence passes, output shapes, and quality checks.
 
 ## Local Transcription
 
-Run:
+When captions are missing, run:
 
 ```bash
 scripts/transcribe_local_whisper.sh "/path/to/video-or-audio" [output_dir] [base_name]
 ```
 
-The helper requires `ffmpeg` plus one supported local engine: `mlx_whisper`, `whisper`, `whisper-cli`, or `whisper-cpp`. It auto-detects engines on `PATH`; use environment variables documented by `--help` to select a binary, model, language, or prompt.
-
-The bundled scripts target Bash on macOS, Linux, or WSL. Native Windows execution is not assumed.
+The helper requires `ffmpeg` plus one supported local engine: `mlx_whisper`, `whisper`, `whisper-cli`, or `whisper-cpp`. It auto-detects engines on `PATH`; use `--help` for model, language, binary, and prompt overrides.
 
 ## Visual Sampling
 
@@ -60,13 +89,15 @@ Run:
 scripts/sample_video_frames.sh "/path/to/video" [output_dir]
 ```
 
-The helper requires `ffmpeg` and `ffprobe`. It samples up to 12 evenly spaced frames by default and writes `frames.tsv` with approximate timestamps. Override behavior with `FRAME_COUNT` and `FRAME_WIDTH`.
+The helper requires `ffmpeg` and `ffprobe`. It samples up to 12 evenly spaced frames by default and writes `frames.tsv` with approximate timestamps.
+
+The bundled scripts target Bash on macOS, Linux, or WSL. Native Windows execution is not assumed.
 
 ## Completion Checklist
 
-- State which media, captions, transcripts, metadata, and frames were actually examined.
-- Give an executive summary and timestamped key points when timing exists.
-- Include important claims, decisions, examples, and actionable takeaways appropriate to the request.
-- For collections, provide per-item notes before the cross-item synthesis.
-- Report transcription quality, unexamined ranges, conflicts, and other caveats.
-- Do not claim full-video coverage when only samples or partial transcripts were analyzed.
+- Report the local work directory and acquired media count.
+- State whether captions came from YouTube, local transcription, or neither.
+- State which metadata, transcripts, and frames were actually examined.
+- Give the requested analysis with timestamps when supported by the evidence.
+- For playlists, distinguish successful, partial, and failed items.
+- Disclose acquisition, transcription, visual-sampling, and coverage limitations.
