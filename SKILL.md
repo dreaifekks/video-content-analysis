@@ -18,7 +18,7 @@ Run the complete local evidence pipeline: acquire the source with `yt-dlp`, pref
 ## Windows Platform Contract
 
 - Target native Windows only. Do not claim validated macOS, Linux, or WSL support from this branch.
-- Require PowerShell 7, `yt-dlp`, `ffmpeg`, `ffprobe`, and Node.js 22 or newer on `PATH`.
+- Require PowerShell 7 plus `yt-dlp`, `ffmpeg`, `ffprobe`, and Node.js 22 or newer, either on `PATH` or supplied through the helpers' explicit path parameters.
 - Require the OpenAI Whisper CLI for local transcription; prefer CUDA on a compatible NVIDIA GPU and allow explicit CPU use when necessary.
 - Keep browser profiles, media, transcripts, and generated frames on the PC unless the user separately authorizes another workflow.
 - Read the prerequisites in `references/youtube-acquisition.md` before the first acquisition run.

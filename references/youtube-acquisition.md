@@ -2,7 +2,7 @@
 
 ## Windows Prerequisites
 
-This branch targets native Windows. Install current releases of PowerShell 7, `yt-dlp`, `ffmpeg`, `ffprobe`, and Node.js 22 or newer, then make the commands available on `PATH`.
+This branch targets native Windows. Install current releases of PowerShell 7, `yt-dlp`, `ffmpeg`, `ffprobe`, and Node.js 22 or newer. Make the commands available on `PATH` or supply explicit binary paths to the acquisition helper.
 
 Verify the commands before downloading:
 
