@@ -86,12 +86,24 @@ fi
 if [[ "${SKIP_MEDIA:-0}" != "1" ]]; then
   command -v ffmpeg >/dev/null || { echo "ffmpeg not found" >&2; exit 127; }
 fi
+command -v deno >/dev/null || { echo "Deno 2.3.0 or newer is required for YouTube EJS challenge solving." >&2; exit 127; }
+deno_version="$(deno --version | awk 'NR == 1 { print $2 }')"
+if ! awk -v version="$deno_version" 'BEGIN {
+  split(version, parts, ".")
+  exit !((parts[1] > 2) || (parts[1] == 2 && parts[2] >= 3))
+}'; then
+  echo "Deno 2.3.0 or newer is required; found $deno_version." >&2
+  exit 1
+fi
 
 mkdir -p "$output_dir"
 
 yt_args=(
+  --ignore-config
+  --no-plugin-dirs
+  --remote-components ejs:github
   --newline
-  --ignore-errors
+  --no-abort-on-error
   --continue
   --retries "$retries"
   --fragment-retries "$retries"
@@ -109,10 +121,21 @@ yt_args=(
   --sub-format "vtt/srt/best"
 )
 
-if [[ "${NO_PLAYLIST:-0}" == "1" ]]; then
-  yt_args+=(--no-playlist)
-else
+if [[ "${NO_PLAYLIST:-0}" == "1" && "${INCLUDE_PLAYLIST:-0}" == "1" ]]; then
+  echo "Choose either NO_PLAYLIST=1 or INCLUDE_PLAYLIST=1, not both." >&2
+  exit 2
+elif [[ "${INCLUDE_PLAYLIST:-0}" == "1" ]]; then
   yt_args+=(--yes-playlist)
+  playlist_mode="playlist"
+elif [[ "${NO_PLAYLIST:-0}" == "1" ]]; then
+  yt_args+=(--no-playlist)
+  playlist_mode="single video"
+elif [[ "$url" == */playlist\?* ]]; then
+  yt_args+=(--yes-playlist)
+  playlist_mode="playlist"
+else
+  yt_args+=(--no-playlist)
+  playlist_mode="single video"
 fi
 
 if [[ "${SKIP_MEDIA:-0}" == "1" ]]; then
@@ -147,17 +170,27 @@ fi
 echo "Acquiring YouTube source"
 echo "Output directory: $output_dir"
 echo "Authentication: $auth_mode"
+echo "Playlist mode: $playlist_mode"
 echo "Caption languages: $sub_langs"
 
 set +e
-"$yt_dlp_bin" "${yt_args[@]}" "$url"
-yt_status=$?
+run_stamp="$(date -u '+%Y%m%d-%H%M%S')"
+acquisition_log="$output_dir/acquisition-$run_stamp.log"
+error_log="$output_dir/acquisition-$run_stamp.errors.log"
+"$yt_dlp_bin" "${yt_args[@]}" "$url" 2>&1 | tee "$acquisition_log"
+yt_status="${PIPESTATUS[0]}"
 set -e
+grep -Ei '(^|[[:space:]])ERROR:' "$acquisition_log" > "$error_log" || true
 
-media_count="$(find "$output_dir" -maxdepth 1 -type f \( -iname '*.mkv' -o -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mov' -o -iname '*.m4v' \) -print | wc -l | tr -d '[:space:]')"
-subtitle_count="$(find "$output_dir" -maxdepth 1 -type f \( -iname '*.vtt' -o -iname '*.srt' -o -iname '*.ass' -o -iname '*.srv3' \) -print | wc -l | tr -d '[:space:]')"
-metadata_count="$(find "$output_dir" -maxdepth 1 -type f -name '*.info.json' -print | wc -l | tr -d '[:space:]')"
-thumbnail_count="$(find "$output_dir" -maxdepth 1 -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' \) -print | wc -l | tr -d '[:space:]')"
+shopt -s nullglob nocaseglob
+media_files=("$output_dir"/*.mkv "$output_dir"/*.mp4 "$output_dir"/*.webm "$output_dir"/*.mov "$output_dir"/*.m4v)
+subtitle_files=("$output_dir"/*.vtt "$output_dir"/*.srt "$output_dir"/*.ass "$output_dir"/*.srv3)
+metadata_files=("$output_dir"/*.info.json)
+thumbnail_files=("$output_dir"/*.jpg "$output_dir"/*.jpeg "$output_dir"/*.png "$output_dir"/*.webp)
+media_count="${#media_files[@]}"
+subtitle_count="${#subtitle_files[@]}"
+metadata_count="${#metadata_files[@]}"
+thumbnail_count="${#thumbnail_files[@]}"
 
 echo
 echo "Acquisition summary"
@@ -165,9 +198,11 @@ echo "Media files: $media_count"
 echo "Caption files: $subtitle_count"
 echo "Metadata files: $metadata_count"
 echo "Thumbnail files: $thumbnail_count"
+echo "Acquisition log: $acquisition_log"
+echo "Error log: $error_log"
 
 if [[ $yt_status -ne 0 ]]; then
-  echo "yt-dlp exited with status $yt_status; inspect successful and failed items before analysis." >&2
+  echo "yt-dlp reported one or more acquisition or post-processing failures (status $yt_status). Preserve successful files, review $error_log, and treat a playlist as partial." >&2
   exit "$yt_status"
 fi
 

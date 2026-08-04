@@ -2,10 +2,10 @@
 
 ## macOS Prerequisites
 
-This skill targets macOS. Install the acquisition and media dependencies with Homebrew when they are not already available:
+This reference covers the macOS route. Install the acquisition and media dependencies with Homebrew when they are not already available:
 
 ```bash
-brew install yt-dlp ffmpeg
+brew install yt-dlp ffmpeg deno
 ```
 
 Verify the host and commands before downloading:
@@ -15,9 +15,10 @@ test "$(uname -s)" = "Darwin"
 command -v yt-dlp
 command -v ffmpeg
 command -v ffprobe
+command -v deno
 ```
 
-Homebrew is the recommended installation route, not a runtime requirement; existing compatible binaries on `PATH` are acceptable. Apple Silicon is the validated route when local MLX Whisper transcription is needed. An Intel Mac may use another local Whisper engine, but verify that path on the target machine before claiming support.
+Homebrew is the recommended installation route, not a runtime requirement; existing compatible binaries on `PATH` are acceptable. Deno 2.3.0 or newer is the supported JavaScript runtime for YouTube EJS challenge solving in the bundled macOS helper. Apple Silicon is the validated route when local MLX Whisper transcription is needed. An Intel Mac may use another local Whisper engine, but verify that path on the target machine before claiming support.
 
 ## Input and Output Contract
 
@@ -51,7 +52,9 @@ Authentication reuses access the user already has. It is not a DRM bypass and mu
 
 - `YT_DLP_SUB_LANGS`: Caption language expression. Default: `en,zh-Hans,zh-Hant,ja,.*-orig`. The exact tags cover common human captions, while `.*-orig` selects an original automatic-caption track when YouTube labels one. Override it for other human-caption languages.
 - `YT_DLP_RETRIES`: Network and fragment retry count. Default: `10`.
-- `NO_PLAYLIST=1`: Download only the addressed video when a URL also contains playlist context.
+- Ordinary watch, Short, live, and youtu.be URLs default to one item even when they contain `list=`; explicit `/playlist` URLs default to playlist mode.
+- `NO_PLAYLIST=1`: Force only the addressed item.
+- `INCLUDE_PLAYLIST=1`: Explicitly acquire the playlist attached to a watch URL.
 - `SKIP_MEDIA=1`: Fetch metadata, descriptions, thumbnails, and captions without downloading video media.
 - `LIVE_FROM_START=1`: Ask `yt-dlp` to acquire a running livestream from its beginning when supported.
 - `WAIT_FOR_VIDEO=MIN[-MAX]`: Wait for a scheduled livestream to become available.
@@ -88,6 +91,6 @@ Do not load every playlist transcript into context at once. Analyze each item, r
 4. For browser-cookie errors, verify the browser/profile selector locally without displaying cookie data.
 5. For scheduled lives, use `WAIT_FOR_VIDEO`; for running lives, add `LIVE_FROM_START=1` only when full-from-start capture is intended.
 6. If media downloads but captions do not exist, continue through local transcription.
-7. If a playlist partially fails, preserve successful items, report failed video IDs, and avoid claiming full coverage.
+7. If a playlist partially fails, preserve successful items and read the timestamped `acquisition-*.errors.log`. Report video IDs named there, disclose errors whose IDs cannot be recovered, and avoid claiming full coverage.
 
 Treat downloaded metadata as local evidence. Even cleaned `*.info.json` files may contain fields that should not be published without review.

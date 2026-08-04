@@ -39,7 +39,7 @@ For a collection, finish the item-level map before comparing items.
 
 ### 4. Visual pass
 
-Start with `scripts/sample_video_frames.sh` in its default `auto` mode. It probes visual-change density, keeps sparse coverage through static intervals, and lowers the interval around stronger changes. Read both `frames.tsv` and `sampling.tsv` before deciding whether coverage is sufficient.
+Start with the platform sampler in its default `auto` mode: `scripts/sample_video_frames.sh` on macOS or `scripts/sample_video_frames.ps1` on Windows. It probes visual-change density, keeps sparse coverage through static intervals, and lowers the interval around stronger changes. Read both `frames.tsv` and `sampling.tsv` before deciding whether coverage is sufficient.
 
 Automatic density is only a visual-change proxy. A moving face can change pixels without adding much information, while a static price chart can contain important values. Add a semantic-density pass using the timed transcript:
 
@@ -57,14 +57,23 @@ Choose a manual intensity when the user requests one or the source type clearly 
 | `high` | Chart-heavy trading, dashboards, code, demonstrations, or dense slides. |
 | `max` | Explicitly requested exhaustive visual review, preferably on short material or narrowed ranges. |
 
-Run a manual profile with:
+Run a manual profile on macOS with:
 
 ```bash
 scripts/sample_video_frames.sh \
   "/path/to/video" "/path/to/new-frame-output" high
 ```
 
-Use a new output directory for every sampling run. There is no default total-frame limit; the intensity profile continues sampling across the entire video according to its interval and change threshold. This does not mean extracting every encoded video frame or duplicating unchanged frames. Set `FRAME_COUNT` only when the user explicitly requests a hard limit. `FRAME_MIN_GAP`, `FRAME_MAX_GAP`, and `FRAME_SCENE_THRESHOLD` are expert overrides.
+Run the equivalent profile on Windows with:
+
+```powershell
+& "$skillPath\scripts\sample_video_frames.ps1" `
+  -InputPath 'C:\path\video.mkv' `
+  -OutputDir 'C:\path\new-frame-output' `
+  -Intensity high
+```
+
+Use a new output directory for every sampling run. There is no default total-frame limit; the intensity profile continues sampling across the entire video according to its interval and change threshold. This does not mean extracting every encoded video frame or duplicating unchanged frames. Set `FRAME_COUNT` on macOS or `-FrameCount` on Windows only when the user explicitly requests a hard limit. Minimum gap, maximum gap, and scene threshold are expert overrides.
 
 For direct Codex use, prefer a compact invocation such as `$video-content-analysis high "YOUTUBE_URL"`. In Codex CLI or the IDE extension, `$` mentions a skill and `/skills` opens the skill selector; `/skill high` is not a per-skill command alias. After selection, a bare intensity token must be honored without asking the user to translate it into an environment variable.
 
